@@ -1,3 +1,39 @@
+// ===========================================================================
+// Version 1, kept for reference. This is NOT built and NOT used.
+//
+// The original single-file simulation: it integrated the Schwarzschild
+// geodesic equations in SI units with forward Euler and printed r and phi to
+// the console. The engine in ../include/sre/ replaces it. What changed, and
+// why, in case any of it is useful to anyone reading both:
+//
+//  1. UNITS. Integrating with r ~ 1e12 m and dr/dt ~ 1e8 m/s makes the terms
+//     of the geodesic equation span ~20 orders of magnitude, and double
+//     precision loses most of its significant digits to cancellation before
+//     the ray has gone anywhere. The engine works in units where r_s = 1 and
+//     c = 1, keeping every quantity O(1..100).
+//
+//  2. THE INTEGRATOR. Forward Euler is first order, and on an oscillatory
+//     problem like a bound photon orbit it is also unstable: the amplitude
+//     grows without bound however small the step. The engine uses Cash-Karp
+//     5(4) with adaptive step control, and tests/ measures the convergence
+//     order to confirm it.
+//
+//  3. THE EQUATION. Integrating r(lambda) and phi(lambda) means dr/dlambda
+//     passes through zero at periapsis and dt/dlambda = E/f diverges at the
+//     horizon. Substituting u = 1/r and using phi as the independent variable
+//     removes both problems and gives an equation with a free exact error
+//     check (the impact parameter is conserved).
+//
+//  4. THE HARD-CODED MASS. Below, both Ray's constructor and calAcc() embed
+//     8.54e36 kg directly rather than taking it from the BlackHole they are
+//     supposed to be orbiting, so changing SagA's mass silently changed
+//     nothing about the trajectories.
+//
+//  5. OUTPUT. There was no way to see the result.
+//
+// See ../docs/PHYSICS.md for the derivation the engine follows.
+// ===========================================================================
+
 #include <iostream>
 #include <vector>
 #include <cmath>
