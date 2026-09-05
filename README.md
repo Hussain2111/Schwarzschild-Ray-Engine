@@ -27,20 +27,25 @@ cmake --build build --parallel
 ctest --test-dir build            # 132 physics checks
 ```
 
-**Windows** (Developer Command Prompt for Visual Studio 2019+)
+**Windows** (Developer PowerShell for Visual Studio 2019+)
 
-```bat
+```powershell
+cd $HOME                     # the Developer shell starts in a read-only folder
+git clone https://github.com/Hussain2111/Schwarzschild-Ray-Engine.git
+cd Schwarzschild-Ray-Engine
+
 cmake -S . -B build -DSRE_FETCH_GLFW=ON
 cmake --build build --config Release
 
-build\Release\sre-render.exe
-build\Release\sre-viewer.exe
+.\build\Release\sre-render.exe
+.\build\Release\sre-viewer.exe
 ctest --test-dir build --build-config Release
 ```
 
 `-DSRE_FETCH_GLFW=ON` builds GLFW as part of the project, so there is no package
-manager to install first. Note that Visual Studio puts the binaries in
-`build\Release\` and needs `--config Release`.
+manager to install first. Two Windows gotchas: the Developer shell opens inside
+the Visual Studio install directory, which you cannot write to, and Visual
+Studio puts the binaries in `build\Release\` rather than `build\`.
 
 GLFW is optional everywhere. If it is missing, CMake skips the viewer and tells
 you how to get it; the renderer and the test suite still build with nothing but

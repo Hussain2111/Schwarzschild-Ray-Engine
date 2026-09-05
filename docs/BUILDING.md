@@ -15,18 +15,45 @@ target, and still builds the renderer and the tests.
 ## Windows
 
 You need **Visual Studio 2019 or newer** with the *Desktop development with C++*
-workload (that installs MSVC, the Windows SDK, and CMake). Everything below is
-run from the *Developer Command Prompt for VS* or *Developer PowerShell*, which
-put the compiler on your `PATH`.
+workload (that installs MSVC, the Windows SDK, and CMake). The standalone
+**Build Tools** edition works just as well -- it is the same compiler without
+the IDE. Everything below is run from the *Developer Command Prompt for VS* or
+*Developer PowerShell*, which put the compiler on your `PATH`.
+
+Check the toolchain is complete before you start:
+
+```powershell
+cl /?      # should print the MSVC banner
+cmake --version
+```
+
+If `cmake` is missing (this happens on some Build Tools installs), open the
+Visual Studio Installer, choose *Modify*, and tick **C++ CMake tools for
+Windows** under Individual Components.
+
+> **Start by moving somewhere writable.** The Developer Command Prompt and
+> Developer PowerShell open *inside the Visual Studio install directory*
+> (`C:\Program Files (x86)\Microsoft Visual Studio\...`), which is
+> read-only for normal users. Cloning there fails with
+> `fatal: could not create work tree dir ...: Permission denied`. That is the
+> shell's starting directory, not a broken install -- just `cd` to your own
+> folder first.
 
 ### The short version
 
-```bat
+```powershell
+cd $HOME
+mkdir source\repos -Force | Out-Null
+cd source\repos
+
 git clone https://github.com/Hussain2111/Schwarzschild-Ray-Engine.git
 cd Schwarzschild-Ray-Engine
 cmake -S . -B build -DSRE_FETCH_GLFW=ON
 cmake --build build --config Release
 ```
+
+(In `cmd.exe` rather than PowerShell, use `cd /d %USERPROFILE%` and
+`mkdir source\repos` instead of the first three lines.)
 
 Then:
 
@@ -88,6 +115,26 @@ WSL works too, and is the closest thing to the Linux instructions below. The
 renderer is fine headless. For the viewer you need WSLg (Windows 11, or Windows
 10 with a recent update), plus `libglfw3-dev` and `libgl1-mesa-dev`. If the
 viewer cannot open a window, use `sre-render` instead — it needs no display.
+
+### Troubleshooting
+
+**`fatal: could not create work tree dir '...': Permission denied`**
+You are still in the Visual Studio install directory, which is not writable.
+`cd $HOME` (or any folder you own) and clone again.
+
+**`cmake` or `cl` is not recognised**
+You are in a plain PowerShell or cmd window rather than a *Developer* one.
+Launch "Developer PowerShell for VS" from the Start menu. If `cl` works but
+`cmake` does not, install the CMake component as described above.
+
+**`sre-render.exe` is not found after a successful build**
+Visual Studio is a multi-configuration generator, so the binaries are in
+`build\Release\`, not `build\`. See the note above.
+
+**The build succeeded but `sre-viewer.exe` is missing**
+GLFW was not found and not fetched. Re-run the configure step with
+`-DSRE_FETCH_GLFW=ON`, and delete the `build` folder first if you are changing
+options on an existing configuration.
 
 ### Known Windows limitations
 
