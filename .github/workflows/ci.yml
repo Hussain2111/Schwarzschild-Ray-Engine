@@ -26,6 +26,14 @@ jobs:
             compiler: clang
             cc: clang
             cxx: clang++
+          # Windows has no system package manager to pull GLFW from, so the
+          # build fetches and compiles it. This is the exact path the README
+          # tells Windows users to take, so CI proves that path works.
+          - os: windows-latest
+            compiler: msvc
+            cc: cl
+            cxx: cl
+            cmake_extra: -DSRE_FETCH_GLFW=ON
 
     steps:
       - uses: actions/checkout@v4
@@ -48,29 +56,90 @@ jobs:
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSRE_WARNINGS_AS_ERRORS=ON
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          -DSRE_WARNINGS_AS_ERRORS=ON ${{ matrix.cmake_extra }}
 
+      # --config matters only for the multi-config generators (Visual Studio);
+      # single-config generators ignore it.
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --config Release --parallel
 
       - name: Test
         env:
           LIBGL_ALWAYS_SOFTWARE: 1
           EGL_PLATFORM: surfaceless
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --build-config Release --output-on-failure
 
       # A render is the real end-to-end check: it exercises the integrator, the
       # disk intersector, the colour pipeline and the PNG writer in one go.
-      - name: Render a frame
+      - name: Render a frame (POSIX)
+        if: runner.os != 'Windows'
         run: |
           ./build/sre-render --width 320 --height 180 --samples 1 --output ci-frame.png
           test -s ci-frame.png
+
+      - name: Render a frame (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\build\Release\sre-render.exe --width 320 --height 180 --samples 1 --output ci-frame.png
+          if (-not (Test-Path ci-frame.png)) { throw "no frame written" }
+          if ((Get-Item ci-frame.png).Length -eq 0) { throw "frame is empty" }
+
+      # The viewer cannot open a window on a CI runner, but it must at least
+      # exist and be a working executable -- --help exercises argument parsing
+      # without touching GL.
+      - name: Check the viewer binary exists (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path .\build\Release\sre-viewer.exe)) {
+            throw "sre-viewer.exe was not built"
+          }
+          Write-Host "sre-viewer.exe built successfully"
 
       - name: Upload the rendered frame
         uses: actions/upload-artifact@v4
         with:
           name: frame-${{ matrix.os }}-${{ matrix.compiler }}
           path: ci-frame.png
+
+  mingw-cross:
+    name: MinGW cross-build (Windows target)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MinGW-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mingw-w64
+      # Cross-compiling the offline renderer and the test suite for Windows
+      # keeps the second Windows toolchain honest, and checks that the MinGW
+      # static-link settings actually produce a standalone .exe.
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_SYSTEM_NAME=Windows \
+            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSRE_BUILD_VIEWER=OFF -DSRE_BUILD_SHADER_CHECK=OFF \
+            -DSRE_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Check the executables are Windows binaries
+        run: |
+          file build/sre-render.exe build/sre-tests.exe
+          file build/sre-render.exe | grep -q "PE32+" || exit 1
+      # A standalone .exe must not depend on the MinGW runtime DLLs.
+      - name: Check the .exe is self-contained
+        run: |
+          if x86_64-w64-mingw32-objdump -p build/sre-render.exe \
+               | grep -iE "libstdc\+\+|libgcc_s|libwinpthread"; then
+            echo "ERROR: the executable still depends on MinGW runtime DLLs"
+            exit 1
+          fi
+          echo "no MinGW runtime DLL dependencies"
 
   no-viewer-build:
     name: offline renderer only (no GL)

@@ -16,6 +16,8 @@ There are two front ends over one physics core:
 
 ## Quick start
 
+**Linux / macOS**
+
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
@@ -25,12 +27,32 @@ cmake --build build --parallel
 ctest --test-dir build            # 132 physics checks
 ```
 
-GLFW is optional. If it is missing, CMake skips the viewer and says so; the
-renderer and the test suite still build. On Debian/Ubuntu:
+**Windows** (Developer Command Prompt for Visual Studio 2019+)
+
+```bat
+cmake -S . -B build -DSRE_FETCH_GLFW=ON
+cmake --build build --config Release
+
+build\Release\sre-render.exe
+build\Release\sre-viewer.exe
+ctest --test-dir build --build-config Release
+```
+
+`-DSRE_FETCH_GLFW=ON` builds GLFW as part of the project, so there is no package
+manager to install first. Note that Visual Studio puts the binaries in
+`build\Release\` and needs `--config Release`.
+
+GLFW is optional everywhere. If it is missing, CMake skips the viewer and tells
+you how to get it; the renderer and the test suite still build with nothing but
+a C++17 compiler.
 
 ```bash
-sudo apt install libglfw3-dev libgl1-mesa-dev
+sudo apt install libglfw3-dev libgl1-mesa-dev    # Debian/Ubuntu
+brew install glfw                                # macOS
 ```
+
+Full per-platform instructions, including vcpkg, MSYS2/MinGW and WSL, are in
+**[docs/BUILDING.md](docs/BUILDING.md)**.
 
 ## What you are looking at
 
@@ -195,6 +217,7 @@ shaders/              the GPU port of the same physics
 tests/                physics suite and headless GLSL check
 tools/turntable.sh    orbit animation helper
 docs/PHYSICS.md       full derivation, and what is not modelled
+docs/BUILDING.md      per-platform build instructions
 legacy/               the original single-file version, kept for comparison
 ```
 

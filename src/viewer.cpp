@@ -4,6 +4,7 @@
 // Everything the CPU does here is bookkeeping: the physics lives in
 // shaders/blackhole.frag, which mirrors include/sre/geodesic.hpp.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>

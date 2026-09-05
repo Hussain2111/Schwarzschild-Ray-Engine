@@ -33,6 +33,7 @@
 // to get the redshift right.
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 

@@ -18,6 +18,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>

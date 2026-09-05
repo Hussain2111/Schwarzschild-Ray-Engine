@@ -7,6 +7,7 @@
 //
 // No test framework: a tiny harness keeps the suite buildable anywhere.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <string>
