@@ -4,6 +4,7 @@
 // null geodesic traced backwards from the camera until it hits the disk, falls
 // through the horizon, or escapes to the sky.
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
