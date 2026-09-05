@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} / ${{ matrix.compiler }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+          - os: ubuntu-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+          - os: macos-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The viewer needs GLFW and OpenGL; the offline renderer and the physics
+      # tests need nothing but a C++17 compiler. The shader check additionally
+      # wants EGL plus Mesa's software rasteriser so it can run without a GPU.
+      - name: Install graphics dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libglfw3-dev libgl1-mesa-dev libegl1-mesa-dev libgl1-mesa-dri
+
+      - name: Install graphics dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install glfw
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSRE_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        env:
+          LIBGL_ALWAYS_SOFTWARE: 1
+          EGL_PLATFORM: surfaceless
+        run: ctest --test-dir build --output-on-failure
+
+      # A render is the real end-to-end check: it exercises the integrator, the
+      # disk intersector, the colour pipeline and the PNG writer in one go.
+      - name: Render a frame
+        run: |
+          ./build/sre-render --width 320 --height 180 --samples 1 --output ci-frame.png
+          test -s ci-frame.png
+
+      - name: Upload the rendered frame
+        uses: actions/upload-artifact@v4
+        with:
+          name: frame-${{ matrix.os }}-${{ matrix.compiler }}
+          path: ci-frame.png
+
+  no-viewer-build:
+    name: offline renderer only (no GL)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Proves the core has no hidden graphics dependency: no GLFW, no GL, no
+      # EGL installed at all.
+      - name: Configure without the viewer
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DSRE_BUILD_VIEWER=OFF -DSRE_BUILD_SHADER_CHECK=OFF \
+            -DSRE_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
